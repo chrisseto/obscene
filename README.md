@@ -1,4 +1,5 @@
-obscene
+Obscene
 =======
 
-A gesture detection library written in scala. Ported from the Android module for use outside of android application.
+A gesture detection library written in scala.
+Ported from the Android module `android.gesture` for use outside of Android applications.
