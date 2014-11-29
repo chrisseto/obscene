@@ -11,5 +11,14 @@ class GestureStroke(val points: List[GesturePoint]){
 
   val boundingBox: Rectangle = createBoundingBox(new Rectangle(0, 0), points)
 
+  val length: Float = this.boundingBox.diagonal
+
+  def flatPoints: Array[Float] = {
+    def loop(points: List[GesturePoint], flattened: List[Float]): List[Float] = points match {
+        case p1 :: ps => flattened :+ p1.x :+ p1.y
+        case _ => flattened
+    }
+    loop(points, List()).toArray
+  }
 }
 
