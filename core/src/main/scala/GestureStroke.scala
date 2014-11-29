@@ -25,8 +25,14 @@ class GestureStroke(val points: List[GesturePoint]){
   }
 
   def serialize(stream: DataOutputStream) {
-    stream.write(this.points.length)
+    stream.writeInt(this.points.length)
     this.points.map(x => x.serialize(stream))
   }
+}
+
+object GestureStroke {
+  def deserialize(stream: DataInputStream): GestureStroke =
+    new GestureStroke((for(_ <- 0 to stream.readInt())
+      yield GesturePoint.deserialize(stream)).to[List])
 }
 
