@@ -9,7 +9,6 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer.ShapeType
 
-import xyz.seto.obscene._
 import xyz.seto.obscene.libgdx.GestureDetector
 
 class ObsceneExample extends Game {
@@ -47,7 +46,7 @@ class ExampleScreen(game: Game) extends Screen {
     shapes.end()
   }
 
-  def resize(x$1: Int,x$2: Int): Unit = {}
+  def resize(x$1: Int, x$2: Int): Unit = {}
   def resume(): Unit = {}
   def show(): Unit = {}
 }
