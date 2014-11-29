@@ -6,7 +6,7 @@ import java.util.ArrayList
 import java.io.DataOutputStream;
 import java.io.DataInputStream;
 
-class Gesture(var id: Int, var strokes: List[GestureStroke], var boundingBox: Rectangle){
+class Gesture(var id: Long, var strokes: List[GestureStroke], var boundingBox: Rectangle){
   def this() = this(0, List(), new Rectangle(0, 0))
   def this(stream: DataInputStream) = this(0, List(), new Rectangle(0, 0))
 
@@ -20,6 +20,10 @@ class Gesture(var id: Int, var strokes: List[GestureStroke], var boundingBox: Re
     strokes = strokes :+ stroke
   }
 
-  def serialize(stream: DataOutputStream): String = "TODO"
-  
+  def serialize(stream: DataOutputStream): Unit = {
+    stream.writeLong(this.id)
+    stream.writeInt(this.strokes.length)
+    this.strokes.map(x => x.serialize(stream))
+  }
+
 }

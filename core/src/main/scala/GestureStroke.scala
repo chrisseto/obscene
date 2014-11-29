@@ -2,6 +2,9 @@ package xyz.seto.obscene
 
 import xyz.seto.obscene.utils.Rectangle
 
+import java.io.DataOutputStream;
+import java.io.DataInputStream;
+
 
 class GestureStroke(val points: List[GesturePoint]){
   private def createBoundingBox(cBox: Rectangle, cPoints: List[GesturePoint]): Rectangle = cPoints match {
@@ -19,6 +22,11 @@ class GestureStroke(val points: List[GesturePoint]){
         case _ => flattened
     }
     loop(points, List()).toArray
+  }
+
+  def serialize(stream: DataOutputStream) {
+    stream.write(this.points.length)
+    this.points.map(x => x.serialize(stream))
   }
 }
 
