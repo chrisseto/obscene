@@ -17,3 +17,9 @@ class GesturePoint(val x: Float, val y: Float, val timeStamp: Long) {
 
   override def toString: String = s"<GesturePoint ($x, $y) $timeStamp>"
 }
+
+object GesturePoint {
+  def deserialize(stream: DataInputStream): GesturePoint =
+    new GesturePoint(
+      stream.readFloat(), stream.readFloat(), stream.readLong())
+}
