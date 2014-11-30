@@ -32,7 +32,7 @@ class GestureStroke(val points: List[GesturePoint]){
 
 object GestureStroke {
   def deserialize(stream: DataInputStream): GestureStroke =
-    new GestureStroke((for(_ <- 0 to stream.readInt())
+    new GestureStroke((for(_ <- 1 to stream.readInt())
       yield GesturePoint.deserialize(stream)).to[List])
 }
 

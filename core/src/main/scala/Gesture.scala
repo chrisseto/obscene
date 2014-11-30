@@ -39,6 +39,6 @@ object Gesture {
   }
 
   def deserialize(stream: DataInputStream): Gesture =
-    new Gesture(stream.readLong(), (for(_ <- 0 to stream.readInt())
+    new Gesture(stream.readLong(), (for(_ <- 1 to stream.readInt())
       yield GestureStroke.deserialize(stream)).to[List])
 }
