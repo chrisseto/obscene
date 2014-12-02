@@ -1,15 +1,20 @@
-package xyz.seto.obscene.libgdx
+package xyz.seto.obscene.libgdx;
 
 import scala.collection.mutable.ListBuffer
 
+import java.io.DataOutputStream;
+
+import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.InputAdapter
 import com.badlogic.gdx.utils.TimeUtils
+import com.badlogic.gdx.scenes.scene2d.InputEvent
+import com.badlogic.gdx.scenes.scene2d.InputListener
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 
 import xyz.seto.obscene._
 
 
-class GestureDetector extends InputAdapter {
+class GestureDetector(val listener: GestureListener) extends InputListener {
 
   var jest: Gesture = new Gesture
   var detectingGesture = false
@@ -25,22 +30,24 @@ class GestureDetector extends InputAdapter {
     loop(pointBuffer.to[List])
   }
 
-  override def touchDown(screenX: Int, screenY: Int, pointer: Int, button: Int) = {
+  override def touchDown(event: InputEvent, screenX: Float, screenY: Float, pointer: Int, button: Int) = {
     detectingGesture = true
     pointBuffer = new ListBuffer[GesturePoint]
-    true
-  }
-
-  override def touchDragged(screenX: Int, screenY: Int, pointer: Int) = {
     pointBuffer += new GesturePoint(screenX, screenY, TimeUtils.millis())
     true
   }
 
-  override def touchUp(screenX: Int, screenY: Int, pointer: Int, button: Int) = {
+  override def touchDragged(event: InputEvent, screenX: Float, screenY: Float, pointer: Int) = {
+    pointBuffer += new GesturePoint(screenX, screenY, TimeUtils.millis())
+    true
+  }
+
+  override def touchUp(event: InputEvent, screenX: Float, screenY: Float, pointer: Int, button: Int) = {
     detectingGesture = false
+    pointBuffer += new GesturePoint(screenX, screenY, TimeUtils.millis())
     jest = new Gesture
     jest.addStroke(new GestureStroke(pointBuffer.to[List]))
-    true
+    listener.onGesturePreformed(this, jest)
   }
 
 }
