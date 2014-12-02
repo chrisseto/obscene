@@ -4,12 +4,20 @@ import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Game
 import com.badlogic.gdx.Screen
 import com.badlogic.gdx.graphics.GL20;
+import com.badlogic.gdx.scenes.scene2d.Actor
+import com.badlogic.gdx.scenes.scene2d.Stage
+import com.badlogic.gdx.graphics.g2d.Batch
+import com.badlogic.gdx.utils.viewport.ScreenViewport
 import com.badlogic.gdx.graphics.g2d.BitmapFont
+import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer.ShapeType
 
+import xyz.seto.obscene.Gesture
 import xyz.seto.obscene.libgdx.GestureDetector
+import xyz.seto.obscene.libgdx.GestureListener
+
 
 class ObsceneExample extends Game {
     override def create() {
@@ -19,34 +27,25 @@ class ObsceneExample extends Game {
 
 
 class ExampleScreen(game: Game) extends Screen {
+  var stage = new Stage(new ScreenViewport())
 
-  val gDetector = new GestureDetector
-  val font = new BitmapFont
-  val batch = new SpriteBatch
-  val shapes = new ShapeRenderer
+  Gdx.input.setInputProcessor(stage);
 
-  Gdx.input.setInputProcessor(gDetector);
-
-  def dispose(): Unit = {}
-  def hide(): Unit = {}
-  def pause(): Unit = {}
+  stage.addActor(new GestureTableView)
+  // stage.addActor(new GestureRecorder(stage.getWidth(), stage.getHeight()))
 
   def render(delta: Float): Unit = {
-    Gdx.gl.glClearColor(1, 1, 1, 1)
     Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
-    Gdx.gl.glLineWidth(20)
 
-    batch.begin()
-    font.draw(batch, gDetector.numPoints.toString, 0, 50)
-    batch.end()
+    stage.act(delta);
+    stage.draw();
 
-    shapes.begin(ShapeType.Line)
-    shapes.setColor(0, 0, 0, 1)
-    gDetector.drawPoints(shapes)
-    shapes.end()
   }
 
-  def resize(x$1: Int, x$2: Int): Unit = {}
+  def resize(width: Int, height: Int): Unit = stage.getViewport().update(width, height, true)
+  def dispose(): Unit = stage.dispose()
   def resume(): Unit = {}
+  def pause(): Unit = {}
+  def hide(): Unit = {}
   def show(): Unit = {}
 }
