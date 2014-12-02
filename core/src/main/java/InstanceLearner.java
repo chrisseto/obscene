@@ -28,9 +28,9 @@ import java.util.TreeMap;
 class InstanceLearner extends Learner {
     private static final Comparator<Prediction> sComparator = new Comparator<Prediction>() {
         public int compare(Prediction object1, Prediction object2) {
-            if (object1.$greater(object2)) {
+            if (object1.score() > object2.score()) {
                 return -1;
-            } else if (object1.$less(object2)) {
+            } else if (object1.score() < object2.score()) {
                 return 1;
             } else {
                 return 0;

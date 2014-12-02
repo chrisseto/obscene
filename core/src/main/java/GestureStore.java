@@ -28,7 +28,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Set;
 import java.util.Map;
-
+import java.util.Arrays;
 // import static android.gesture.GestureConstants.LOG_TAG;
 
 /**
@@ -89,9 +89,9 @@ public class GestureStore {
     }
 
     /**
-     * Specify how the gesture library will handle orientation. 
+     * Specify how the gesture library will handle orientation.
      * Use ORIENTATION_INVARIANT or ORIENTATION_SENSITIVE
-     * 
+     *
      * @param style
      */
     public void setOrientationStyle(int style) {
@@ -118,7 +118,7 @@ public class GestureStore {
 
     /**
      * Get all the gesture entry names in the library
-     * 
+     *
      * @return a set of strings
      */
     public Set<String> getGestureEntries() {
@@ -127,7 +127,7 @@ public class GestureStore {
 
     /**
      * Recognize a gesture
-     * 
+     *
      * @param gesture the query
      * @return a list of predictions of possible entries for a given gesture
      */
@@ -139,7 +139,7 @@ public class GestureStore {
 
     /**
      * Add a gesture for the entry
-     * 
+     *
      * @param entryName entry name
      * @param gesture
      */
@@ -161,7 +161,7 @@ public class GestureStore {
     /**
      * Remove a gesture from the library. If there are no more gestures for the
      * given entry, the gesture entry will be removed.
-     * 
+     *
      * @param entryName entry name
      * @param gesture
      */
@@ -185,7 +185,7 @@ public class GestureStore {
 
     /**
      * Remove a entry of gestures
-     * 
+     *
      * @param entryName the entry name
      */
     public void removeEntry(String entryName) {
@@ -196,7 +196,7 @@ public class GestureStore {
 
     /**
      * Get all the gestures of an entry
-     * 
+     *
      * @param entryName
      * @return the list of gestures that is under this name
      */
@@ -317,7 +317,7 @@ public class GestureStore {
 
             final ArrayList<Gesture> gestures = new ArrayList<Gesture>(gestureCount);
             for (int j = 0; j < gestureCount; j++) {
-                final Gesture gesture = new Gesture(in);
+                final Gesture gesture = Gesture.deserialize(in);
                 gestures.add(gesture);
                 classifier.addInstance(
                         Instance.createInstance(mSequenceType, mOrientationStyle, gesture, name));
@@ -326,7 +326,7 @@ public class GestureStore {
             namedGestures.put(name, gestures);
         }
     }
-    
+
     Learner getLearner() {
         return mClassifier;
     }
