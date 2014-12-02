@@ -18,7 +18,7 @@ class GestureStroke(val points: List[GesturePoint]){
 
   def flatPoints: Array[Float] = {
     def loop(points: List[GesturePoint], flattened: List[Float]): List[Float] = points match {
-        case p1 :: ps => flattened :+ p1.x :+ p1.y
+        case p1 :: ps => loop(ps, flattened :+ p1.x :+ p1.y)
         case _ => flattened
     }
     loop(points, List()).toArray
