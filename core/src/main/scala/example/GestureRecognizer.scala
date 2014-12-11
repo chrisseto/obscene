@@ -36,7 +36,8 @@ class GestureRecognizer(width: Float, height: Float) extends Actor with GestureL
     renderer.setTransformMatrix(batch.getTransformMatrix());
     renderer.translate(getX(), getY(), 0);
     renderer.begin(ShapeType.Line)
-    renderer.setColor(Color.BLUE)
+    renderer.setColor(Color.YELLOW)
+    Gdx.gl20.glLineWidth(20)
     gDetector.drawPoints(renderer)
     renderer.end()
 
