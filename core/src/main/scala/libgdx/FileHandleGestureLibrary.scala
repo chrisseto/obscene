@@ -11,7 +11,7 @@ class FileHandleGestureLibrary(val handle: FileHandle) extends GestureLibrary {
     override def isReadOnly(): Boolean = true
 
     def save(): Boolean = {
-        if (!mStore.hasChanged()) return true
+        if (!mStore.hasChanged) return true
 
         mStore.save(handle.write(false), true);
         true;
