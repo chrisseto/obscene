@@ -21,12 +21,9 @@ import java.io.IOException;
  * </ul>
  */
 object GestureUtils {
-    val SCALING_THRESHOLD = 0.26f
-    val NONUNIFORM_SCALE = (float) math.sqrt(2)
-}
+  val SCALING_THRESHOLD = 0.26f
+  val NONUNIFORM_SCALE = math.sqrt(2).toFloat
 
-class GestureUtils {
-  
   type Matrix[T] = List[List[T]]
 
 
@@ -36,7 +33,7 @@ class GestureUtils {
      * @param stream The stream to close.
      */
     def closeStream(stream: Closeable) = stream match {
-      case x => try x.close() catch {}
+      case x => try x.close()
       case _ =>
     }
 
@@ -68,239 +65,107 @@ class GestureUtils {
      *         value at pixel [i%bitmapSize, i/bitmapSize]
      */
     def spatialSampling(gesture: Gesture, bitmapSize: Int, keepAspectRatio: Boolean) {
-        final float targetPatchSize = bitmapSize - 1;
-        float[] sample = new float[bitmapSize * bitmapSize];
-        Arrays.fill(sample, 0);
+      def getSlope(p1: Point, p2: Point) = ((p1.x - p2.x) / (p1.y - p2.y))
+      def getInverseSlope(p1: Point, p2: Point) = ((p1.y - p2.y) / (p1.x - p2.x))
 
-        Rectangle rect = gesture.getBoundingBox();
-        final float gestureWidth = rect.width();
-        final float gestureHeight = rect.height();
-        float sx = targetPatchSize / gestureWidth;
-        float sy = targetPatchSize / gestureHeight;
+      def evalHorizontally(xpos: Float, slope: Float, limit: Float, sample: List[Float]) = {
+        if (xpos > limit)
+          evalHorizontally(xpos++, limit, plot(
+              xpos,
+              slope * (xpos - segStartX) + segStartY,
+              sample,
+              bitmapSize
+            ))
+        else
+          sample
+      }
 
-        if (keepAspectRatio) {
-            float scale = sx < sy ? sx : sy;
-            sx = scale;
-            sy = scale;
-        } else {
+      def evalVertically(ypos: Float, inverseSlope: Float, limit: Float, sample: List[Float]) = {
+        if (ypos > limit)
+          evalVertically(ypos++, limit, plot(
+              invertSlope * (ypos - segmentStartY) + segmentStartX,
+              ypos,
+              sample,
+              bitmapSize
+            ))
+        else
+          sample
+      }
 
-            float aspectRatio = gestureWidth / gestureHeight;
-            if (aspectRatio > 1) {
-                aspectRatio = 1 / aspectRatio;
-            }
-            if (aspectRatio < SCALING_THRESHOLD) {
-                float scale = sx < sy ? sx : sy;
-                sx = scale;
-                sy = scale;
-            } else {
-                if (sx > sy) {
-                    float scale = sy * NONUNIFORM_SCALE;
-                    if (scale < sx) {
-                        sx = scale;
-                    }
-                } else {
-                    float scale = sx * NONUNIFORM_SCALE;
-                    if (scale < sy) {
-                        sy = scale;
-                    }
-                }
-            }
+      def processX(current: Point, previous: Point, sample: Array[Float])
+        if(previous.x > current.x)
+          evalHorizontally(math.ceil(current.x), getSlope(current, previous), previous.x, sample)
+        else if(previous.x < current.x)
+          evalHorizontally(math.ceil(previous.x), getInverseSlopeSlope(current, previous), current.x, sample)
+
+      def processY(current: Point, previous: Point, sample: Array[Float])
+        if(previous.y > current.y)
+          evalVertically(math.ceil(current.y), getSlope(current, previous), previous.y, sample)
+        else if(previous.y < current.y)
+          evalVertically(math.ceil(previous.y), getInverseSlopeSlope(current, previous), current.y, sample)
+
+      def processPoint(current: Point, previous: Point, sample: Array[Float]) =
+        processX(current, previous, processY(current, previous, sample))
+
+      def loopPoints(points: List[Points], sample: Array[Float]) = points match {
+        case p1 :: p2 :: ps => loopPoints(p2 :: ps, processPoint(p1, p2, sample))
+        case _ => sample
+      }
+
+      def scalePoint(sx: Float, sy: Float, preDx: Float, preDy:Float, postDx:Float, postDy: Float)(point: Point): Point =
+        new Point((point.x + preDx) * sx + postDx, (point.y + preDy) * sy + postDy)
+
+      def scalePoints(points: List[Point], scaler: Point => Point): List[Point] = {
+        def loop(pts: List[Point], res: List[Point]) = pts match {
+          case p :: ps => loop(ps, scaler(p) :: res)
+          case _ => res
         }
-        float preDx = -rect.centerX();
-        float preDy = -rect.centerY();
-        float postDx = targetPatchSize / 2;
-        float postDy = targetPatchSize / 2;
-        final ArrayList<GestureStroke> strokes = gesture.getStrokes();
-        final int count = strokes.size();
-        int size;
-        float xpos;
-        float ypos;
-        for (int index = 0; index < count; index++) {
-            final GestureStroke stroke = strokes.get(index);
-            float[] strokepoints = stroke.flatPoints();
-            size = strokepoints.length;
-            final float[] pts = new float[size];
-            for (int i = 0; i < size; i += 2) {
-                pts[i] = (strokepoints[i] + preDx) * sx + postDx;
-                pts[i + 1] = (strokepoints[i + 1] + preDy) * sy + postDy;
-            }
-            float segmentEndX = -1;
-            float segmentEndY = -1;
-            for (int i = 0; i < size; i += 2) {
-                float segmentStartX = pts[i] < 0 ? 0 : pts[i];
-                float segmentStartY = pts[i + 1] < 0 ? 0 : pts[i + 1];
-                if (segmentStartX > targetPatchSize) {
-                    segmentStartX = targetPatchSize;
-                }
-                if (segmentStartY > targetPatchSize) {
-                    segmentStartY = targetPatchSize;
-                }
-                plot(segmentStartX, segmentStartY, sample, bitmapSize);
-                if (segmentEndX != -1) {
-                    // Evaluate horizontally
-                    if (segmentEndX > segmentStartX) {
-                        xpos = (float) Math.ceil(segmentStartX);
-                        float slope = (segmentEndY - segmentStartY) /
-                                      (segmentEndX - segmentStartX);
-                        while (xpos < segmentEndX) {
-                            ypos = slope * (xpos - segmentStartX) + segmentStartY;
-                            plot(xpos, ypos, sample, bitmapSize);
-                            xpos++;
-                        }
-                    } else if (segmentEndX < segmentStartX){
-                        xpos = (float) Math.ceil(segmentEndX);
-                        float slope = (segmentEndY - segmentStartY) /
-                                      (segmentEndX - segmentStartX);
-                        while (xpos < segmentStartX) {
-                            ypos = slope * (xpos - segmentStartX) + segmentStartY;
-                            plot(xpos, ypos, sample, bitmapSize);
-                            xpos++;
-                        }
-                    }
-                    // Evaluate vertically
-                    if (segmentEndY > segmentStartY) {
-                        ypos = (float) Math.ceil(segmentStartY);
-                        float invertSlope = (segmentEndX - segmentStartX) /
-                                            (segmentEndY - segmentStartY);
-                        while (ypos < segmentEndY) {
-                            xpos = invertSlope * (ypos - segmentStartY) + segmentStartX;
-                            plot(xpos, ypos, sample, bitmapSize);
-                            ypos++;
-                        }
-                    } else if (segmentEndY < segmentStartY) {
-                        ypos = (float) Math.ceil(segmentEndY);
-                        float invertSlope = (segmentEndX - segmentStartX) /
-                                            (segmentEndY - segmentStartY);
-                        while (ypos < segmentStartY) {
-                            xpos = invertSlope * (ypos - segmentStartY) + segmentStartX;
-                            plot(xpos, ypos, sample, bitmapSize);
-                            ypos++;
-                        }
-                    }
-                }
-                segmentEndX = segmentStartX;
-                segmentEndY = segmentStartY;
-            }
-        }
-        return sample;
-    }
-    public static float[] spatialSampling(Gesture gesture, int bitmapSize,
-            boolean keepAspectRatio) {
-        final float targetPatchSize = bitmapSize - 1;
-        float[] sample = new float[bitmapSize * bitmapSize];
-        Arrays.fill(sample, 0);
+        loop(points, new List[Point])
+      }
 
-        Rectangle rect = gesture.getBoundingBox();
-        final float gestureWidth = rect.width();
-        final float gestureHeight = rect.height();
-        float sx = targetPatchSize / gestureWidth;
-        float sy = targetPatchSize / gestureHeight;
+      def loopStrokes(strokes: List[Stroke], scaler: Point => Point, sample: Array[Float]): Array[Float] = strokes match {
+        case stroke :: ss => loopStrokes(ss, loopPoints(scalePoints(stroke.flatPoints, scaler), sample))
+        case _ => sample
+      }
 
-        if (keepAspectRatio) {
-            float scale = sx < sy ? sx : sy;
-            sx = scale;
-            sy = scale;
-        } else {
+      val rect = gesture.getBoundingBox
+      val gestureWidth = rect.width
+      val gestureHeight = rect.height
+      val sx = targetPatchSize / gestureWidth
+      val sy = targetPatchSize / gestureHeight
 
-            float aspectRatio = gestureWidth / gestureHeight;
-            if (aspectRatio > 1) {
-                aspectRatio = 1 / aspectRatio;
-            }
-            if (aspectRatio < SCALING_THRESHOLD) {
-                float scale = sx < sy ? sx : sy;
-                sx = scale;
-                sy = scale;
-            } else {
-                if (sx > sy) {
-                    float scale = sy * NONUNIFORM_SCALE;
-                    if (scale < sx) {
-                        sx = scale;
-                    }
-                } else {
-                    float scale = sx * NONUNIFORM_SCALE;
-                    if (scale < sy) {
-                        sy = scale;
-                    }
-                }
-            }
-        }
-        float preDx = -rect.centerX();
-        float preDy = -rect.centerY();
-        float postDx = targetPatchSize / 2;
-        float postDy = targetPatchSize / 2;
-        final ArrayList<GestureStroke> strokes = gesture.getStrokes();
-        final int count = strokes.size();
-        int size;
-        float xpos;
-        float ypos;
-        for (int index = 0; index < count; index++) {
-            final GestureStroke stroke = strokes.get(index);
-            float[] strokepoints = stroke.flatPoints();
-            size = strokepoints.length;
-            final float[] pts = new float[size];
-            for (int i = 0; i < size; i += 2) {
-                pts[i] = (strokepoints[i] + preDx) * sx + postDx;
-                pts[i + 1] = (strokepoints[i + 1] + preDy) * sy + postDy;
-            }
-            float segmentEndX = -1;
-            float segmentEndY = -1;
-            for (int i = 0; i < size; i += 2) {
-                float segmentStartX = pts[i] < 0 ? 0 : pts[i];
-                float segmentStartY = pts[i + 1] < 0 ? 0 : pts[i + 1];
-                if (segmentStartX > targetPatchSize) {
-                    segmentStartX = targetPatchSize;
-                }
-                if (segmentStartY > targetPatchSize) {
-                    segmentStartY = targetPatchSize;
-                }
-                plot(segmentStartX, segmentStartY, sample, bitmapSize);
-                if (segmentEndX != -1) {
-                    // Evaluate horizontally
-                    if (segmentEndX > segmentStartX) {
-                        xpos = (float) Math.ceil(segmentStartX);
-                        float slope = (segmentEndY - segmentStartY) /
-                                      (segmentEndX - segmentStartX);
-                        while (xpos < segmentEndX) {
-                            ypos = slope * (xpos - segmentStartX) + segmentStartY;
-                            plot(xpos, ypos, sample, bitmapSize);
-                            xpos++;
-                        }
-                    } else if (segmentEndX < segmentStartX){
-                        xpos = (float) Math.ceil(segmentEndX);
-                        float slope = (segmentEndY - segmentStartY) /
-                                      (segmentEndX - segmentStartX);
-                        while (xpos < segmentStartX) {
-                            ypos = slope * (xpos - segmentStartX) + segmentStartY;
-                            plot(xpos, ypos, sample, bitmapSize);
-                            xpos++;
-                        }
-                    }
-                    // Evaluate vertically
-                    if (segmentEndY > segmentStartY) {
-                        ypos = (float) Math.ceil(segmentStartY);
-                        float invertSlope = (segmentEndX - segmentStartX) /
-                                            (segmentEndY - segmentStartY);
-                        while (ypos < segmentEndY) {
-                            xpos = invertSlope * (ypos - segmentStartY) + segmentStartX;
-                            plot(xpos, ypos, sample, bitmapSize);
-                            ypos++;
-                        }
-                    } else if (segmentEndY < segmentStartY) {
-                        ypos = (float) Math.ceil(segmentEndY);
-                        float invertSlope = (segmentEndX - segmentStartX) /
-                                            (segmentEndY - segmentStartY);
-                        while (ypos < segmentStartY) {
-                            xpos = invertSlope * (ypos - segmentStartY) + segmentStartX;
-                            plot(xpos, ypos, sample, bitmapSize);
-                            ypos++;
-                        }
-                    }
-                }
-                segmentEndX = segmentStartX;
-                segmentEndY = segmentStartY;
-            }
-        }
-        return sample;
+      if (keepAspectRatio) {
+          val scale = sx < sy ? sx : sy
+          val sx = scale
+          val sy = scale
+      } else {
+          var aspectRatio = gestureWidth / gestureHeight
+          if (aspectRatio > 1) {
+              aspectRatio = 1 / aspectRatio
+          }
+          if (aspectRatio < SCALING_THRESHOLD) {
+              scale = sx < sy ? sx : sy
+              sx = scale
+              sy = scale
+          } else {
+              if (sx > sy) {
+                  val scale = sy * NONUNIFORM_SCALE
+                  if (scale < sx) {
+                      sx = scale
+                  }
+              } else {
+                  val scale = sx * NONUNIFORM_SCALE
+                  if (scale < sy) {
+                      sy = scale
+                  }
+              }
+          }
+      }
+
+      val targetPatchSize = bitmapSize - 1;
+      val buffer = Array.fill[Float](bitmapSize * bitmapSize)(0)
+      val scaler = scalePoint(sx, sy, -rect.centerX, -rect.centerY, targetPatchSize / 2, targetPatchSize / 2)
+      loopStrokes(gesture.strokes, scaler, buffer)
     }
 
     def plot(x: Float, y: Float, sample: List[Float], sampleSize: Int): List[Float] = {
@@ -417,7 +282,7 @@ class GestureUtils {
 
     def computeTotalLength(points: List[Float]) = {
       def loop(pts: List[Float], sum: Float) = pts match {
-        case x1 :: y1 :: x2 :: y2 :: ps => 
+        case x1 :: y1 :: x2 :: y2 :: ps =>
           loop(ps, sum +
             math.sqrt(
               math.pow(x2 - x1, 2),
@@ -429,7 +294,7 @@ class GestureUtils {
       loop(points, 0)
     }
 
-    def computerStraightness(points: List[Float]) = 
+    def computerStraightness(points: List[Float]) =
       computeStraightness(points, computeTotalLength(points))
 
     def computerStraightness(points: List[Float], totalLen: Float) = points match {
