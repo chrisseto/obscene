@@ -169,14 +169,15 @@ object GestureUtils {
     }
 
     def plot(x: Float, y: Float, sample: List[Float], sampleSize: Int): List[Float] = {
-      def update(vector: List[Float], value: Float, index: Int) = {
+      def updated(vector: List[Float], value: Float, index: Int) = {
         if(value > vector(index))
           vector.updated(index, value)
         else
           vector
       }
-        x = x < 0 ? 0 : x
-        y = y < 0 ? 0 : y
+      //TODO Find a better way to do this
+      if (x < 0 || y < 0)
+        plot(x < 0 ? 0 : x, y < 0 ? : y, sample, sampleSize)
 
         val xFloor = math.floor(x).toInt
         val yFloor = math.floor(y).toInt
@@ -190,19 +191,19 @@ object GestureUtils {
                 sample.update(index, 1)
             }
         } else {
-            val xFloorSq = math.pow(xFloor - x, 2);
-            val yFloorSq = math.pow(yFloor - y, 2);
-            val xCeilingSq = math.pow(xCeiling - x, 2);
-            val yCeilingSq = math.pow(yCeiling - y, 2);
-            val topLeft = math.sqrt(xFloorSq + yFloorSq)
-            val topRight =  math.sqrt(xCeilingSq + yFloorSq)
-            val btmLeft =  math.sqrt(xFloorSq + yCeilingSq)
-            val btmRight =  math.sqrt(xCeilingSq + yCeilingSq)
+            val xFloorSq = math.pow(xFloor - x, 2).toFloat
+            val yFloorSq = math.pow(yFloor - y, 2).toFloat
+            val xCeilingSq = math.pow(xCeiling - x, 2).toFloat
+            val yCeilingSq = math.pow(yCeiling - y, 2).toFloat
+            val topLeft = math.sqrt(xFloorSq + yFloorSq).toFloat
+            val topRight =  math.sqrt(xCeilingSq + yFloorSq).toFloat
+            val btmLeft =  math.sqrt(xFloorSq + yCeilingSq).toFloat
+            val btmRight =  math.sqrt(xCeilingSq + yCeilingSq).toFloat
             val sum = topLeft + topRight + btmLeft + btmRight
 
-            updated(update(update(updated(sample,
+            updated(updated(updated(updated(sample,
               topLeft / sum, yFloor * sampleSize * xFloor),
-              topRight / sum, yFloat * sampleSize + xCeiling),
+              topRight / sum, yFloor * sampleSize + xCeiling),
               btmLeft/ sum, yCeiling * sampleSize + xFloor),
               btmRight / sum, yCeiling * sampleSize + xCeiling)
         }
@@ -220,7 +221,7 @@ object GestureUtils {
         val increment = stroke.length / (numPoints - 1)
         val vectorLength = numPoints * 2;
 
-        def buildVector(points: List[Float], previousX: Float, previousY: Float, distanceSoFar: Float, vector: List[Float]): (List[Float], Float, Float) = {
+        def buildVector(points: List[Float], previousX: Float, previousY: Float, distanceSoFar: Float, vector: List[Float]): (List[Float], Float, Float) = points match {
           case currentX :: currentY :: pts => {
             val deltaX = currentX - previousX
             val deltaY = currentY - previousY
@@ -237,14 +238,14 @@ object GestureUtils {
           case _ => (vector, previousX, previousY)
         }
 
-        def fillVector(vector: List[Float], x: Float, y: Float, size: Float) = {
+        def fillVector(size: Float)(vector: List[Float], x: Float, y: Float) = {
           if (vector.size < size)
             fillVector(vector :: x :: y, x, y, size)
           else
             vector
         }
 
-        fillVector _ tupled buildVector(stroke.flatPoints, Float.MinValue, Float.MinValue, 0, new List[Float]), vectorLength
+        fillVector(vectorLength) _ tupled buildVector(stroke.flatPoints, Float.MinValue, Float.MinValue, 0, new List[Float])
     }
 
 
@@ -255,7 +256,7 @@ object GestureUtils {
      * @return the centroid
      */
     def computeCentroid(points: List[Float]): List[Float] = {
-      def loop(cX: Float, cY: Float, pts: List[Float]) = pts match {
+      def loop(cX: Float, cY: Float, pts: List[Float]): List[Float] = pts match {
         case px :: py :: ps => loop(cX + px, cY + py, ps)
         case _ => List(2 * cX / points.size, 2 * cY / points.size)
       }
@@ -268,24 +269,24 @@ object GestureUtils {
      * @param points the points in the form of [x1, y1, x2, y2, ..., xn, yn]
      * @return the variance-covariance matrix
      */
-    def computeCoVariance(points: List[Float]): Matrix[List] = {
+    def computeCoVariance(points: List[Float]): Matrix[Float] = {
       val mod = points.size / 2
-      def loop(pts: List[Float], x1: Float, x2: Float, x3: Float, x4: Float) = pts match {
+      def loop(pts: List[Float], x1: Float, x2: Float, x3: Float, x4: Float): Matrix[Float] = pts match {
         case x :: y :: ps => loop(ps, x1 + x * x, x2 + x * y, x3 + x * y, x4 + y * y)
-        case _ => new List(
-            new List(x1 / mod, x2 / mod),
-            new List(x3 / mod, x4 / mod)
-          )
+        case _ => List(
+          List(x1 / mod, x2 / mod),
+          List(x3 / mod, x4 / mod)
+        )
       }
-      def loop(points, 0, 0, 0, 0)
+      loop(points, 0, 0, 0, 0)
     }
 
     def computeTotalLength(points: List[Float]) = {
-      def loop(pts: List[Float], sum: Float) = pts match {
+      def loop(pts: List[Float], sum: Float):Float = pts match {
         case x1 :: y1 :: x2 :: y2 :: ps =>
           loop(ps, sum +
             math.sqrt(
-              math.pow(x2 - x1, 2),
+              math.pow(x2 - x1, 2) +
               math.pow(y2 - y1, 2)
             ).toFloat
           )
@@ -297,10 +298,13 @@ object GestureUtils {
     def computerStraightness(points: List[Float]) =
       computeStraightness(points, computeTotalLength(points))
 
-    def computerStraightness(points: List[Float], totalLen: Float) = points match {
-      case x1 :: y1 :: x2 :: y2 =>
-        (math.sqrt(math.pow(x2 - x1, 2), math.pow(y2 - y1, 2)).toFloat) / totalLen
-    }
+    def computerStraightness(points: List[Float], totalLen: Float) =
+        (
+          math.sqrt(
+            math.pow(points(3) - points(1), 2) +
+            math.pow(points(4) - points(2), 2)
+          ).toFloat
+        ) / totalLen
 
     /**
      * Calculates the squared Euclidean distance between two vectors.
@@ -310,9 +314,9 @@ object GestureUtils {
      * @return the distance
      */
     def squaredEuclideanDistance(vector1: List[Float], vector2: List[Float]) = {
-      def loop(v1: List[Float], v2: List[Float], dist: Float) = (v1, v2) match {
+      def loop(v1: List[Float], v2: List[Float], dist: Float): Float = (v1, v2) match {
         case  (v1h :: v1s, v2h :: v2s) =>
-          loop(v1s, v2s, dist + math.pow(v1h = v2h, 2).toFloat)
+          loop(v1s, v2s, dist + math.pow(v1h + v2h, 2).toFloat)
         case _ => dist
       }
       loop(vector1, vector2, 0)
@@ -325,7 +329,7 @@ object GestureUtils {
      * @return the distance between 0 and Math.PI
      */
     def cosineDistance(vector1: List[Float], vector2: List[Float]) = {
-      def loop(v1: List[Float], v2: List[Float], dist: Float) = (v1, v2) match {
+      def loop(v1: List[Float], v2: List[Float], dist: Float): Float = (v1, v2) match {
         case  (v1h :: v1s, v2h :: v2s) =>
           loop(v1s, v2s, dist + (v1h * v2h))
         case _ => dist
@@ -342,23 +346,23 @@ object GestureUtils {
      * @return the distance between the two instances (between 0 and Math.PI)
      */
     def minimumCosineDistance(vector1: List[Float], vector2: List[Float], numOrientations: Int) = {
-        def loop(v1: List[Float], v2: List[Float], f1: Float, f2: Float) = (v1, v2) match {
+        def loop(v1: List[Float], v2: List[Float], f1: Float, f2: Float):(Float, Float) = (v1, v2) match {
           case (fvf :: fvs :: fvr, svf :: svs:: svr) =>
             loop(fvr, svr, f1 + (fvf * svf + fvs * svs), f2 + (fvf * svs - fvs * svf))
           case _ => (f1, f2)
         }
-        val a, b = loop(vector1, vector2, 0, 0)
-        if (a != 0)
+        val (a, b) = loop(vector1, vector2, 0, 0)
+        if (a != 0) {
           val tan = b/a
           val angle = math.atan(tan)
-          if (numOrientations > 2 && math.abs(angle) >= math.PI / numOrientations)
+          if (numOrientations > 2 && math.abs(angle) >= math.Pi / numOrientations)
             math.acos(a).toFloat
           else {
             val cosine = math.cos(angle)
             math.acos(a * cosine + b * tan * cosine)
           }
-        else
-          (math.PI / 2).toFloat
+        } else
+          (math.Pi / 2).toFloat
     }
 
     /**
@@ -369,7 +373,7 @@ object GestureUtils {
      */
     def computeOrientedBoundingBox(points: List[GesturePoint]) = {
       def loop(pts: List[GesturePoint], res: List[Float]): List[Float] = pts match {
-        case gp :: gps => loop(gps, gps :: gp.x :: gp.y)
+        case gp :: gps => loop(gps, (gps :: gp.x) :: gp.y)
         case _ => res
       }
       computeOrientedBoundingBox(loop(points, new List[Float]))
@@ -384,23 +388,27 @@ object GestureUtils {
     def computeOrientedBoundingBox(points: List[Float]) =
       computeOrientedBoundingBox(points, computeCentroid(points))
 
+    //Theres something in the std lib for this
     def larger(a: Float, b: Float): Float = if (a > b) a else b
     def smaller(a: Float, b: Float): Float = if (a > b) b else a
 
     def computeOrientedBoundingBox(points: List[Float], centroid: List[Float]) = {
+      //TODO Take a tuple
       def getAngle(pts: List[Float]) = pts match {
-        case 0 :: 0 => -(math.PI/2).toFloat
-        case x :: y => math.atan2(x, y).toFloat
+        case 0f :: 0f :: Nil => -(math.Pi/2).toFloat
+        case x :: y :: Nil => math.atan2(x, y).toFloat
       }
-      points = translate(points, -centroid[0], -centroid[1])
+
+      points = translate(points, -centroid(0), -centroid(1))
       val array: Matrix[Float] = computeCoVariance(points)
       val targetVector = computeOrientation(array)
       val angle = getAngle(targetVector)
-      if (targetVector != 0 :: 0)
+      if (targetVector != List(0f, 0f))
         points = rotate(points, -angle)
+
       def extremes(pts: List[Float], minx: Float, miny: Float, maxx: Float, maxy: Float): (Float, Float) = pts match {
         case x :: y :: ps =>
-          loop(ps,
+          extremes(ps,
             smaller(x, minx),
             smaller(y, miny),
             larger(x, maxx),
@@ -410,13 +418,13 @@ object GestureUtils {
       }
       new OrientedBoundingBox(
         (angle * 180 / math.Pi).toFloat,
-        centroid[0], centroid[1],
+        centroid(0), centroid(1),
         extremes(points, Float.MaxValue, Float.MaxValue, Float.MinValue, Float.MinValue))
     }
 
     def computeOrientation(covarianceMatrix: Matrix[Float]): List[Float] = {
-      val b = covarianceMatrix[0][0] * covarianceMatrix[1][1] - covarianceMatrix[0][1] * covarianceMatrix[1][0]
-      val value = (-covarianceMatrix[0][0] - covarianceMatrix[1][1]) / 2
+      val b = covarianceMatrix(0)(0) * covarianceMatrix(1)(1) - covarianceMatrix(0)(1) * covarianceMatrix(1)(0)
+      val value = (-covarianceMatrix(0)(0) - covarianceMatrix(1)(1)) / 2
       val rightside = math.sqrt(math.pow(value, 2) - b).toFloat
       val lambda1 = -value + rightside
       val lambda2 = -value - rightside
@@ -424,7 +432,7 @@ object GestureUtils {
       if (lambda1 == lambda2)
         List[Float](0, 0)
       else
-        List[Float](1, (larger(lambda1, lambda2) - covarianceMatrix[0][0]) / covarianceMatrix[0][1])
+        List[Float](1, (larger(lambda1, lambda2) - covarianceMatrix(0)(0)) / covarianceMatrix(0)(1))
     }
 
     def rotate(points: List[Float], angle: Float) = {

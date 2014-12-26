@@ -7,9 +7,9 @@ class InstanceLearner extends Learner {
   override def classify(sequenceType: Int, orientationType: Int, vector: List[Float]): List[Prediction] = {
     def getDistance(sample: Instance) =
       if (sequenceType == GestureStore.SEQUENCE_SENSITIVE)
-        GestureUtils.minimumCosineDistance(sample.vector.toArray, vector.toArray, orientationType)
+        GestureUtils.minimumCosineDistance(sample.vector, vector, orientationType)
       else
-        GestureUtils.squaredEuclideanDistance(sample.vector.toArray, vector.toArray)
+        GestureUtils.squaredEuclideanDistance(sample.vector, vector)
 
     def getWeight(distance: Double): Double =
       if (distance == 0)
