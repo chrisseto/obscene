@@ -1,7 +1,5 @@
 package xyz.seto.obscene.example
 
-import scala.collection.JavaConversions._
-
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.files.FileHandle
 import com.badlogic.gdx.scenes.scene2d.InputEvent
@@ -14,8 +12,8 @@ import com.badlogic.gdx.scenes.scene2d.utils.ClickListener
 
 import java.io.DataOutputStream;
 
-import xyz.seto.obscene.GestureLibrary;
-import xyz.seto.obscene.GestureLibraries;
+import xyz.seto.obscene.GestureLibrary
+import xyz.seto.obscene.GestureLibraries
 import xyz.seto.obscene.libgdx.FileHandleGestureLibrary
 
 
