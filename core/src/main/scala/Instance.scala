@@ -26,7 +26,7 @@ object Instance {
   }
 
   def temporalSampler(orientationType: Int, gesture: Gesture): List[Float] = {
-    def orientation(pts: Array[Float], center: Array[Float]): Float = math.atan2(pts(1) - center(1), pts(0) - center(0)).toFloat
+    def orientation(pts: List[Float], center: List[Float]): Float = math.atan2(pts(1) - center(1), pts(0) - center(0)).toFloat
 
     def makeAdjustment(orientation: Float): Float = {
       def loop(adj: Float, orients: List[Float]): Float = orients match {
