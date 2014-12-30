@@ -6,9 +6,7 @@ import java.io.DataOutputStream;
 import java.io.DataInputStream;
 
 
-class GesturePoint(val x: Float, val y: Float, val timeStamp: Long) {
-  def point = new Point(x, y)
-
+class GesturePoint(override val x: Float, override val y: Float, val timeStamp: Long) extends Point(x, y) {
   def serialize(stream: DataOutputStream) = {
     stream.writeFloat(this.x)
     stream.writeFloat(this.y)
