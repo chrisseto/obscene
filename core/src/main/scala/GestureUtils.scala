@@ -10,6 +10,8 @@ import xyz.seto.obscene.utils.Point
 import java.io.Closeable;
 import java.io.IOException;
 
+import scala.collection.mutable.ListBuffer
+
 /**
  * Utility functions for gesture processing & analysis, including methods for:
  * <ul>
@@ -48,7 +50,7 @@ object GestureUtils {
      *         as a 1D array. The float at index i represents the grayscale
      *         value at pixel [i%bitmapSize, i/bitmapSize]
      */
-    def spatialSampling(gesture: Gesture, bitmapSize: Int): Array[Float] =
+    def spatialSampling(gesture: Gesture, bitmapSize: Int): ListBuffer[Float] =
       spatialSampling(gesture, bitmapSize, false)
 
     /**
@@ -64,15 +66,15 @@ object GestureUtils {
      *         as a 1D array. The float at index i represents the grayscale
      *         value at pixel [i%bitmapSize, i/bitmapSize]
      */
-    def spatialSampling(gesture: Gesture, bitmapSize: Int, keepAspectRatio: Boolean): Array[Float] = {
+    def spatialSampling(gesture: Gesture, bitmapSize: Int, keepAspectRatio: Boolean): ListBuffer[Float] = {
       def getSlope(p1: Point, p2: Point) = ((p1.x - p2.x) / (p1.y - p2.y))
       def getInverseSlope(p1: Point, p2: Point) = ((p1.y - p2.y) / (p1.x - p2.x))
 
-      def evalHorizontally(xpos: Float, slope: Float, limit: Float, sample: Array[Float]): Array[Float] = {
+      def evalHorizontally(start: Point, xpos: Float, slope: Float, limit: Float, sample: ListBuffer[Float]): ListBuffer[Float] = {
         if (xpos > limit)
-          evalHorizontally(xpos++, limit, plot(
+          evalHorizontally(start, xpos + 1, slope, limit, plot(
             xpos,
-            slope * (xpos - segStartX) + segStartY,
+            slope * (xpos - start.x) + start.y,
             sample,
             bitmapSize
           ))
@@ -80,10 +82,10 @@ object GestureUtils {
           sample
       }
 
-      def evalVertically(ypos: Float, inverseSlope: Float, limit: Float, sample: Array[Float]): Array[Float] = {
+      def evalVertically(start: Point, ypos: Float, inverseSlope: Float, limit: Float, sample: ListBuffer[Float]): ListBuffer[Float] = {
         if (ypos > limit)
-          evalVertically(ypos++, limit, plot(
-            invertSlope * (ypos - segmentStartY) + segmentStartX,
+          evalVertically(start, ypos + 1, inverseSlope, limit, plot(
+            inverseSlope * (ypos - start.y) + start.x,
             ypos,
             sample,
             bitmapSize
@@ -92,22 +94,26 @@ object GestureUtils {
           sample
       }
 
-      def processX(current: Point, previous: Point, sample: Array[Float]) =
+      def processX(current: Point, previous: Point, sample: ListBuffer[Float]): ListBuffer[Float] =
         if(previous.x > current.x)
-          evalHorizontally(math.ceil(current.x), getSlope(current, previous), previous.x, sample)
+          evalHorizontally(current, math.ceil(current.x).toFloat, getSlope(current, previous), previous.x, sample)
         else if(previous.x < current.x)
-          evalHorizontally(math.ceil(previous.x), getInverseSlopeSlope(current, previous), current.x, sample)
+          evalHorizontally(current, math.ceil(previous.x).toFloat, getSlope(current, previous), current.x, sample)
+        else
+          sample
 
-      def processY(current: Point, previous: Point, sample: Array[Float]) =
+      def processY(current: Point, previous: Point, sample: ListBuffer[Float]): ListBuffer[Float] =
         if(previous.y > current.y)
-          evalVertically(math.ceil(current.y), getSlope(current, previous), previous.y, sample)
+          evalVertically(current, math.ceil(current.y).toFloat, getInverseSlope(current, previous), previous.y, sample)
         else if(previous.y < current.y)
-          evalVertically(math.ceil(previous.y), getInverseSlopeSlope(current, previous), current.y, sample)
+          evalVertically(current, math.ceil(previous.y).toFloat, getInverseSlope(current, previous), current.y, sample)
+        else
+          sample
 
-      def processPoint(current: Point, previous: Point, sample: Array[Float]) =
+      def processPoint(current: Point, previous: Point, sample: ListBuffer[Float]): ListBuffer[Float] =
         processX(current, previous, processY(current, previous, sample))
 
-      def loopPoints(points: List[Points], sample: Array[Float]) = points match {
+      def loopPoints(points: List[Point], sample: ListBuffer[Float]): ListBuffer[Float] = points match {
         case p1 :: p2 :: ps => loopPoints(p2 :: ps, processPoint(p1, p2, sample))
         case _ => sample
       }
@@ -116,62 +122,74 @@ object GestureUtils {
         new Point((point.x + preDx) * sx + postDx, (point.y + preDy) * sy + postDy)
 
       def scalePoints(points: List[Point], scaler: Point => Point): List[Point] = {
-        def loop(pts: List[Point], res: List[Point]) = pts match {
+        def loop(pts: List[Point], res: List[Point]): List[Point] = pts match {
           case p :: ps => loop(ps, scaler(p) :: res)
           case _ => res
         }
         loop(points, List[Point]())
       }
 
-      def loopStrokes(strokes: List[GestureStroke], scaler: Point => Point, sample: Array[Float]): Array[Float] = strokes match {
-        case stroke :: ss => loopStrokes(ss, loopPoints(scalePoints(stroke.flatPoints, scaler), sample))
+      def loopStrokes(strokes: List[GestureStroke], scaler: Point => Point, sample: ListBuffer[Float]): ListBuffer[Float] = strokes match {
+        case stroke :: ss => loopStrokes(ss, scaler, loopPoints(scalePoints(stroke.points, scaler), sample))
         case _ => sample
       }
 
-      val rect = gesture.getBoundingBox
-      val gestureWidth = rect.width
-      val gestureHeight = rect.height
-      val sx = targetPatchSize / gestureWidth
-      val sy = targetPatchSize / gestureHeight
+      def makeScale(keepAspectRatio: Boolean, patchSize: Float, width: Float, height: Float) = {
+        val sx = patchSize / width
+        val sy = patchSize / height
 
-      if (keepAspectRatio) {
-        val scale = if (sx < sy) sx else sy
-        val sx = scale
-        val sy = scale
-      } else {
-        var aspectRatio = gestureWidth / gestureHeight
-        if (aspectRatio > 1) {
-          aspectRatio = 1 / aspectRatio
-        }
-        if (aspectRatio < SCALING_THRESHOLD) {
-          scale = if (sx < sy) sx else sy
-          sx = scale
-          sy = scale
+        if (keepAspectRatio) {
+          var scale = if (sx < sy) sx else sy
+          (scale, scale, scale)
         } else {
-          if (sx > sy) {
-            val scale = sy * NONUNIFORM_SCALE
-            if (scale < sx)
-              sx = scale
+          var aspectRatio = width / height
+          if (aspectRatio > 1)
+            aspectRatio = 1 / aspectRatio
+
+          if (aspectRatio < SCALING_THRESHOLD) {
+            val scale = if (sx < sy) sx else sy
+
+            (scale, scale, scale)
+          } else {
+            if (sx > sy) {
+              val scale = sy * NONUNIFORM_SCALE
+
+              if (scale < sx)
+                (scale, scale, sy)
+              else
+                (scale, sx, sy)
             } else {
               val scale = sx * NONUNIFORM_SCALE
+
               if (scale < sy)
-                sy = scale
+                (scale, sx, scale)
+              else
+                (scale, sx, sy)
             }
+          }
         }
+
       }
 
-      val targetPatchSize = bitmapSize - 1;
-      val buffer = Array.fill[Float](bitmapSize * bitmapSize)(0)
-      val scaler = scalePoint(sx, sy, -rect.centerX, -rect.centerY, targetPatchSize / 2, targetPatchSize / 2)
+      val targetPatchSize = bitmapSize - 1
+
+      val (scale, sy, sx) = makeScale(
+        keepAspectRatio,
+        targetPatchSize,
+        gesture.boundingBox.width,
+        gesture.boundingBox.height
+      )
+
+      val buffer = Array.fill[Float](bitmapSize * bitmapSize)(0).to[ListBuffer]
+      val scaler = scalePoint(sx, sy, -gesture.boundingBox.centerX, -gesture.boundingBox.centerY, targetPatchSize / 2, targetPatchSize / 2) _
       loopStrokes(gesture.strokes, scaler, buffer)
     }
 
-    def plot(x: Float, y: Float, sample: Array[Float], sampleSize: Int): Array[Float] = {
-      def updated(vector: Array[Float], value: Float, index: Int) = {
+    def plot(x: Float, y: Float, sample: ListBuffer[Float], sampleSize: Int): ListBuffer[Float] = {
+      def updated(vector: ListBuffer[Float], value: Float, index: Int) = {
         if(value > vector(index))
-          vector.updated(index, value)
-        else
-          vector
+          vector.update(index, value)
+        vector
       }
       //TODO Find a better way to do this
       if (x < 0)
@@ -187,9 +205,9 @@ object GestureUtils {
         // if it's an integer
         if (x == xFloor && y == yFloor) {
             val index = yCeiling * sampleSize + xCeiling
-            if (sample(index) < 1){
-                sample.update(index, 1)
-            }
+            if (sample(index) < 1)
+              sample.update(index, 1)
+            sample
         } else {
             val xFloorSq = math.pow(xFloor - x, 2).toFloat
             val yFloorSq = math.pow(yFloor - y, 2).toFloat
@@ -221,31 +239,38 @@ object GestureUtils {
         val increment = stroke.length / (numPoints - 1)
         val vectorLength = numPoints * 2;
 
-        def buildVector(points: List[Float], previousX: Float, previousY: Float, distanceSoFar: Float, vector: List[Float]): (List[Float], Float, Float) = points match {
-          case currentX :: currentY :: pts => {
-            val deltaX = currentX - previousX
-            val deltaY = currentY - previousY
-            val distance = math.sqrt(deltaX * deltaX + deltaY * deltaY)
-            if (distanceSoFar + distance >= increment) {
-              val ratio = (increment - distanceSoFar) / distance
-              val nx = previousX + ratio * deltaX
-              val ny = previousY + ratio * deltaY
-              buildVector(pts, currentX, currentY, 0, vector :: nx :: ny)
-            } else {
-              buildVector(pts, Float.MinValue, Float.MinValue, distanceSoFar, vector)
-            }
+      def compute(previousX: Float, previousY: Float, currentX: Float, currentY: Float, distanceSoFar: Float, vector: List[Float]): (Float, List[Float]) = {
+        val deltaX = currentX - previousX
+        val deltaY = currentY - previousY
+        val distance = math.sqrt(deltaX * deltaX + deltaY * deltaY).toFloat
+
+        if(distance + distanceSoFar >= increment) {
+          val ratio = (increment - distanceSoFar) / distance
+          val nx = previousX + ratio * deltaX
+          val ny = previousY + ratio * deltaY
+          compute(nx, ny, currentX, currentY, 0, nx :: ny :: vector)
+        } else
+          (distance, vector)
+      }
+
+        def loop(points: List[Float])(distance: Float, vector: List[Float]): List[Float] = vector match {
+          case x1 :: y1 :: x2 :: y2 :: pts => {
+            loop(x2 :: y2 :: pts) _ tupled compute(x1, y1, x2, y2, distance, vector)
           }
-          case _ => (vector, previousX, previousY)
+          case _ => vector
         }
 
-        def fillVector(size: Float)(vector: List[Float], x: Float, y: Float) = {
+
+        //TODO List may not be the best type here
+        def fillVector(size: Float)(vector: List[Float]): List[Float] = {
           if (vector.size < size)
-            fillVector(vector :: x :: y, x, y, size)
+            fillVector(size)(vector(0) :: vector(1) :: vector)
           else
             vector
         }
 
-        fillVector(vectorLength) _ tupled buildVector(stroke.flatPoints, Float.MinValue, Float.MinValue, 0, List[Float]())
+        //TODO Double check when not sleepy
+        fillVector(vectorLength)(loop(stroke.flatPoints)(0, List[Float]())).reverse
     }
 
 
@@ -295,10 +320,10 @@ object GestureUtils {
       loop(points, 0)
     }
 
-    def computerStraightness(points: List[Float]) =
+    def computeStraightness(points: List[Float]): Float =
       computeStraightness(points, computeTotalLength(points))
 
-    def computerStraightness(points: List[Float], totalLen: Float) =
+    def computeStraightness(points: List[Float], totalLen: Float): Float =
         (
           math.sqrt(
             math.pow(points(3) - points(1), 2) +
@@ -371,12 +396,12 @@ object GestureUtils {
      * @param originalPoints
      * @return an oriented bounding box
      */
-    def computeOrientedBoundingBox(points: List[GesturePoint]) = {
+    def computeOrientedBoundingBox(points: List[GesturePoint]): OrientedBoundingBox = {
       def loop(pts: List[GesturePoint], res: List[Float]): List[Float] = pts match {
-        case gp :: gps => loop(gps, (gps :: gp.x) :: gp.y)
+        case gp :: gps => loop(gps, gp.x :: gp.y :: res)
         case _ => res
       }
-      computeOrientedBoundingBox(loop(points, List[Float]))
+      computeOrientedBoundingBox(loop(points, List[Float]()))
     }
 
     /**
@@ -385,7 +410,7 @@ object GestureUtils {
      * @param originalPoints
      * @return an oriented bounding box
      */
-    def computeOrientedBoundingBox(points: List[Float]) =
+    def computeOrientedBoundingBox(points: List[Float])(implicit s:DummyImplicit): OrientedBoundingBox =
       computeOrientedBoundingBox(points, computeCentroid(points))
 
     //Theres something in the std lib for this
@@ -399,12 +424,14 @@ object GestureUtils {
         case x :: y :: Nil => math.atan2(x, y).toFloat
       }
 
-      points = translate(points, -centroid(0), -centroid(1))
+      var pts = translate(points, -centroid(0), -centroid(1))
+
       val array: Matrix[Float] = computeCoVariance(points)
       val targetVector = computeOrientation(array)
       val angle = getAngle(targetVector)
+
       if (targetVector != List(0f, 0f))
-        points = rotate(points, -angle)
+        pts = rotate(pts, -angle)
 
       def extremes(pts: List[Float], minx: Float, miny: Float, maxx: Float, maxy: Float): (Float, Float) = pts match {
         case x :: y :: ps =>
@@ -416,10 +443,13 @@ object GestureUtils {
           )
         case _ => (maxx - minx, maxy - miny)
       }
+
+      val (width, height) = extremes(pts, Float.MaxValue, Float.MaxValue, Float.MinValue, Float.MinValue)
+
       new OrientedBoundingBox(
         (angle * 180 / math.Pi).toFloat,
         centroid(0), centroid(1),
-        extremes(points, Float.MaxValue, Float.MaxValue, Float.MinValue, Float.MinValue))
+        width, height)
     }
 
     def computeOrientation(covarianceMatrix: Matrix[Float]): List[Float] = {
@@ -448,13 +478,13 @@ object GestureUtils {
 
     private def transform(op: (Float, Float) => Float)(points: List[Float], dx: Float, dy: Float) = {
       def loop(pts: List[Float], res: List[Float]): List[Float] = pts match {
-        case p1 :: p2 :: ps => loop(ps, op(p1, sx) :: op(p2, sy) :: res)
+        case p1 :: p2 :: ps => loop(ps, op(p1, dx) :: op(p2, dy) :: res)
         case _ => res
       }
       loop(points, List[Float]())
     }
 
-    def scale = transform((a: Float, b: Float) => a * b)
-    def translate = transform((a: Float, b: Float) => a + b)
+    def scale = transform((a: Float, b: Float) => a * b) _
+    def translate = transform((a: Float, b: Float) => a + b) _
 
 }
