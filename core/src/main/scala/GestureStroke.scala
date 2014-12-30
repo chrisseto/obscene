@@ -5,10 +5,12 @@ import xyz.seto.obscene.utils.Rectangle
 import java.io.DataOutputStream;
 import java.io.DataInputStream;
 
+import scala.collection.mutable.ListBuffer
 
-class GestureStroke(val points: List[GesturePoint]){
+
+class GestureStroke(val points: List[GesturePoint]) {
   private def createBoundingBox(cBox: Rectangle, cPoints: List[GesturePoint]): Rectangle = cPoints match {
-      case cP :: cPoints => createBoundingBox(cBox.union(cP.point), cPoints)
+      case cP :: cPoints => createBoundingBox(cBox.union(cP), cPoints)
       case Nil => cBox
   }
 
@@ -16,12 +18,16 @@ class GestureStroke(val points: List[GesturePoint]){
 
   val length: Float = this.boundingBox.diagonal
 
-  def flatPoints: Array[Float] = {
-    def loop(points: List[GesturePoint], flattened: List[Float]): List[Float] = points match {
-        case p1 :: ps => loop(ps, flattened :+ p1.x :+ p1.y)
-        case _ => flattened
+  def flatPoints: List[Float] = {
+    def loop(points: List[GesturePoint], flattened: ListBuffer[Float]): List[Float] = points match {
+        case p1 :: ps => {
+          flattened.append(p1.x)
+          flattened.append(p1.y)
+          loop(ps, flattened)
+        }
+        case _ => flattened.toList
     }
-    loop(points, List()).toArray
+    loop(points, ListBuffer())
   }
 
   def serialize(stream: DataOutputStream) {
