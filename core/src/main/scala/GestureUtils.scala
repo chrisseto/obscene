@@ -236,9 +236,8 @@ object GestureUtils {
      * @return the sampled points in the form of [x1, y1, x2, y2, ..., xn, yn]
      */
     def temporalSampling(stroke: GestureStroke, numPoints: Int) = {
-      val increment = stroke.length / (numPoints - 1)
       val vectorLength = numPoints * 2
-
+      val increment = stroke.length / (numPoints - 1)
 
       def compute(previousX: Float, previousY: Float, currentX: Float, currentY: Float, distanceSoFar: Float, vector: List[Float]): (Float, List[Float]) = {
         val deltaX = currentX - previousX
