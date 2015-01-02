@@ -22,7 +22,7 @@ class InstanceLearner extends Learner {
     def updateMap(label: String, score: Double, map: TreeMap[String, Double]): TreeMap[String, Double] =
       map.get(label) match {
         case Some(existing) if (existing == null | existing < score) => map + (label -> score)
-        case None => map
+        case None => map + (label -> score)
         case _ => map
     }
 
