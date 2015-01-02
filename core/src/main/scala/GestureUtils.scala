@@ -7,8 +7,8 @@ import xyz.seto.obscene.utils.Rectangle
 import xyz.seto.obscene.utils.OrientedBoundingBox
 import xyz.seto.obscene.utils.Point
 
-import java.io.Closeable;
-import java.io.IOException;
+import java.io.Closeable
+import java.io.IOException
 
 import scala.collection.mutable.ListBuffer
 
@@ -236,8 +236,9 @@ object GestureUtils {
      * @return the sampled points in the form of [x1, y1, x2, y2, ..., xn, yn]
      */
     def temporalSampling(stroke: GestureStroke, numPoints: Int) = {
-        val increment = stroke.length / (numPoints - 1)
-        val vectorLength = numPoints * 2;
+      val increment = stroke.length / (numPoints - 1)
+      val vectorLength = numPoints * 2
+
 
       def compute(previousX: Float, previousY: Float, currentX: Float, currentY: Float, distanceSoFar: Float, vector: List[Float]): (Float, List[Float]) = {
         val deltaX = currentX - previousX
@@ -249,11 +250,12 @@ object GestureUtils {
           val nx = previousX + ratio * deltaX
           val ny = previousY + ratio * deltaY
           compute(nx, ny, currentX, currentY, 0, nx :: ny :: vector)
-        } else
-          (distance, vector)
+        } else {
+          (distance + distanceSoFar, vector)
+        }
       }
 
-        def loop(points: List[Float])(distance: Float, vector: List[Float]): List[Float] = vector match {
+        def loop(points: List[Float])(distance: Float, vector: List[Float]): List[Float] = points match {
           case x1 :: y1 :: x2 :: y2 :: pts => {
             loop(x2 :: y2 :: pts) _ tupled compute(x1, y1, x2, y2, distance, vector)
           }
