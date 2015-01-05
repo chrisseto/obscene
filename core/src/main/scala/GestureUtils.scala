@@ -264,10 +264,12 @@ object GestureUtils {
 
         //TODO List may not be the best type here
         def fillVector(size: Float)(vector: List[Float]): List[Float] = {
-          if (vector.size < size)
-            fillVector(size)(vector(0) :: vector(1) :: vector)
-          else
+          if (vector.size >= size)
             vector
+          else vector match {
+            case first :: second :: rest => fillVector(size)(first :: second :: first :: second :: rest)
+            case _ => fillVector(size)(List(Float.MinValue, Float.MinValue))
+          }
         }
 
         //TODO Double check when not sleepy
