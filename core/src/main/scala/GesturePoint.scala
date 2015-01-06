@@ -1,13 +1,13 @@
 package xyz.seto.obscene
 
-import xyz.seto.obscene.utils.Point
+import java.io.DataInput
+import java.io.DataOutput
 
-import java.io.DataOutputStream;
-import java.io.DataInputStream;
+import xyz.seto.obscene.utils.Point
 
 
 class GesturePoint(override val x: Float, override val y: Float, val timeStamp: Long) extends Point(x, y) {
-  def serialize(stream: DataOutputStream) = {
+  def serialize(stream: DataOutput) = {
     stream.writeFloat(this.x)
     stream.writeFloat(this.y)
     stream.writeLong(this.timeStamp)
@@ -17,7 +17,7 @@ class GesturePoint(override val x: Float, override val y: Float, val timeStamp: 
 }
 
 object GesturePoint {
-  def deserialize(stream: DataInputStream): GesturePoint =
+  def deserialize(stream: DataInput): GesturePoint =
     new GesturePoint(
       stream.readFloat(), stream.readFloat(), stream.readLong())
 }
