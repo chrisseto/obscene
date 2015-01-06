@@ -19,7 +19,8 @@ object Settings {
     scalaVersion := (scalaVersion in LocalProject("all-platforms")).value,
     libraryDependencies ++= Seq(
       "com.badlogicgames.gdx" % "gdx" % libgdxVersion.value,
-      "org.scalatest" % "scalatest_2.11" % "2.2.1" % "test"
+      "org.scalatest" % "scalatest_2.11" % "2.2.1" % "test",
+      "org.scalamock" %% "scalamock-scalatest-support" % "3.2" % "test"
     ),
     javacOptions ++= Seq(
       "-Xlint",
@@ -47,6 +48,7 @@ object Settings {
   lazy val desktop = core ++ Seq(
     libraryDependencies ++= Seq(
       "org.scalatest" % "scalatest_2.11" % "2.2.1" % "test",
+      "org.scalamock" %% "scalamock-scalatest-support" % "3.2" % "test",
       "net.sf.proguard" % "proguard-base" % "4.11" % "provided",
       "com.badlogicgames.gdx" % "gdx-backend-lwjgl" % libgdxVersion.value,
       "com.badlogicgames.gdx" % "gdx-platform" % libgdxVersion.value classifier "natives-desktop"
@@ -60,6 +62,7 @@ object Settings {
   lazy val android = core ++ Tasks.natives ++ androidBuild ++ Seq(
     libraryDependencies ++= Seq(
       "org.scalatest" % "scalatest_2.11" % "2.2.1" % "test",
+      "org.scalamock" %% "scalamock-scalatest-support" % "3.2" % "test",
       "com.badlogicgames.gdx" % "gdx-backend-android" % libgdxVersion.value,
       "com.badlogicgames.gdx" % "gdx-platform" % libgdxVersion.value % "natives" classifier "natives-armeabi",
       "com.badlogicgames.gdx" % "gdx-platform" % libgdxVersion.value % "natives" classifier "natives-armeabi-v7a",
