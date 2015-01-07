@@ -1,26 +1,20 @@
 package xyz.seto.obscene
 
+import java.io.DataOutput
+import java.io.DataInput
+
 import xyz.seto.obscene.utils.Rectangle
-import scala.collection.JavaConversions._
-import java.util.ArrayList
-import java.io.DataOutputStream;
-import java.io.DataInputStream;
 
-class Gesture(var id: Long, var strokes: List[GestureStroke], var boundingBox: Rectangle){
-  def this() = this(0, List(), new Rectangle(0, 0))
-  def this(id: Long, strokes: List[GestureStroke]) = this(id, strokes, Gesture.computeBoundingBox(strokes))
 
-  //For Java
-  def getID = id
-  def getStrokes = new ArrayList(strokes.toBuffer)
-  def getBoundingBox(): Rectangle = boundingBox
+class Gesture(val id: Long, val strokes: List[GestureStroke], val boundingBox: Rectangle){
+  def this() = this(0, List())
+  def this(id: Long, strokes: List[GestureStroke]) =
+    this(id, strokes, Gesture.computeBoundingBox(strokes))
 
-  def addStroke(stroke: GestureStroke): Unit = {
-    boundingBox = boundingBox.union(stroke.boundingBox)
-    strokes = strokes :+ stroke
-  }
+  def addStroke(stroke: GestureStroke): Gesture =
+    new Gesture(id, strokes :+ stroke, boundingBox.union(stroke.boundingBox))
 
-  def serialize(stream: DataOutputStream): Unit = {
+  def serialize(stream: DataOutput): Unit = {
     stream.writeLong(this.id)
     stream.writeInt(this.strokes.length)
     this.strokes.map(x => x.serialize(stream))
@@ -38,7 +32,7 @@ object Gesture {
     loop(strokes, new Rectangle(0,0))
   }
 
-  def deserialize(stream: DataInputStream): Gesture =
+  def deserialize(stream: DataInput): Gesture =
     new Gesture(stream.readLong(), (for(_ <- 1 to stream.readInt())
       yield GestureStroke.deserialize(stream)).to[List])
 }
