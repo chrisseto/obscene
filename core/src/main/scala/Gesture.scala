@@ -12,6 +12,10 @@ class Gesture(val id: Long, val strokes: List[GestureStroke], val boundingBox: R
 
   def this() = this(0, List())
 
+  /** Add the given stroke to the current gesture
+   * @param stroke The stroke to add
+   * @return The new Gesture with stroke appended to the list of strokes
+   */
   def addStroke(stroke: GestureStroke): Gesture =
     new Gesture(id, strokes :+ stroke, boundingBox.union(stroke.boundingBox))
 
