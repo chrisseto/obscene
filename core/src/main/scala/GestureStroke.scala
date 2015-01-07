@@ -25,7 +25,7 @@ class GestureStroke(val points: List[GesturePoint]) {
   lazy val length: Float = this.boundingBox.diagonal
 
   /** Flattens the all the points in a gesture stroke
-   * @returns A list of Floats formatted as X1, Y1, ... Xn, Yn
+   * @return A list of Floats formatted as X1, Y1, ... Xn, Yn
    */
   def flatPoints: List[Float] = {
     def loop(points: List[GesturePoint], flattened: ListBuffer[Float]): List[Float] = points match {
