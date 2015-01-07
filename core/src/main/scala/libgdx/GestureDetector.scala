@@ -46,7 +46,7 @@ class GestureDetector(val listener: GestureListener) extends InputListener {
     detectingGesture = false
     pointBuffer += new GesturePoint(screenX, screenY, TimeUtils.millis())
     jest = new Gesture
-    jest.addStroke(new GestureStroke(pointBuffer.to[List]))
+    jest = jest.addStroke(new GestureStroke(pointBuffer.to[List]))
     listener.onGesturePreformed(this, jest)
   }
 
